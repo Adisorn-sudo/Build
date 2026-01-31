@@ -1,4 +1,4 @@
-name: Android JNI ndk-build
+name: Android JNI Build (ndk-build)
 
 on:
   workflow_dispatch:
@@ -10,41 +10,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # 1️⃣ ดึง repo
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup JDK 8 (สำคัญ)
+      # 2️⃣ แตก zip (สำคัญมาก ต้องมาก่อน setup-java)
+      - name: Unzip Android project
+        run: |
+          unzip Apollon_Client_ImGui.zip -d project
+          ls project
+
+      # 3️⃣ ตั้ง Java (ไม่ใช้ cache ป้องกัน error)
+      - name: Setup JDK 8
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
-          cache: gradle
 
-      - name: Install SDK + NDK r21
+      # 4️⃣ ติดตั้ง Android SDK + Build tools + NDK r21
+      - name: Install Android SDK & NDK
         run: |
-          sdkmanager \
+          sdkmanager --install \
             "platform-tools" \
             "platforms;android-30" \
             "build-tools;30.0.3" \
             "ndk;21.4.7075529"
 
+      # 5️⃣ ตั้งค่า NDK env (ndk-build ต้องใช้)
       - name: Set NDK env
         run: |
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
 
-      - name: Unzip project
-        run: unzip Apollon_Client_ImGui.zip -d project
-
+      # 6️⃣ ให้ gradlew รันได้
       - name: Grant gradlew permission
-        run: chmod +x project/gradlew
+        run: chmod +x Apollon_Client_ImGui/gradlew
 
+      # 7️⃣ Build APK (Debug)
       - name: Build Debug APK
         run: |
           cd project
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --info
 
+      # 8️⃣ อัปโหลด APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: apk
-          path: project/app/build/outputs/apk/debug/
-          
+          name: debug-apk
+          path: Apollon_Client_ImGui/app/build/outputs/apk/debug/
