@@ -1,0 +1,50 @@
+name: Android JNI ndk-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 8 (สำคัญ)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: gradle
+
+      - name: Install SDK + NDK r21
+        run: |
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-30" \
+            "build-tools;30.0.3" \
+            "ndk;21.4.7075529"
+
+      - name: Set NDK env
+        run: |
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
+
+      - name: Unzip project
+        run: unzip Apollon_Client_ImGui.zip -d project
+
+      - name: Grant gradlew permission
+        run: chmod +x project/gradlew
+
+      - name: Build Debug APK
+        run: |
+          cd project
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: project/app/build/outputs/apk/debug/
+          
