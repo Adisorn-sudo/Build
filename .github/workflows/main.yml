@@ -17,7 +17,7 @@ jobs:
       # 2️⃣ Unzip project
       - name: Unzip Android project
         run: |
-          unzip Apollon_Client_ImGui.zip
+          unzip Apollon_Client_ImGui.zip -d Apollon_Client_ImGui
           ls Apollon_Client_ImGui
 
       # 3️⃣ Setup Java 8
