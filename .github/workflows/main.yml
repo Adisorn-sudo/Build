@@ -15,7 +15,7 @@ jobs:
     # 1. เตรียมสภาพแวดล้อม
     # ========================================
     - name: 📥 Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: ☕ Setup JDK
       uses: actions/setup-java@v3
@@ -241,21 +241,21 @@ jobs:
     # 9. Upload Artifacts
     # ========================================
     - name: ⬆️ Upload arm64-v8a
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: libs-arm64-v8a
         path: output/libs/arm64-v8a/*.so
         retention-days: 30
         
     - name: ⬆️ Upload armeabi-v7a
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: libs-armeabi-v7a
         path: output/libs/armeabi-v7a/*.so
         retention-days: 30
         
     - name: ⬆️ Upload Complete Package
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Apollon-Client-Complete
         path: Apollon-Client-libs.tar.gz
