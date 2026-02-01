@@ -1,4 +1,4 @@
-name: Build Apollon Client
+name: Build Apollon Client (arm64 only)
 
 on:
   push:
@@ -7,17 +7,14 @@ on:
 
 jobs:
   build:
-    name: Build NDK Libraries
+    name: Build NDK arm64-v8a
     runs-on: ubuntu-latest
     
     steps:
-    # ========================================
-    # 1. เตรียมสภาพแวดล้อม
-    # ========================================
-    - name: 📥 Checkout Repository
+    - name: 📥 Checkout
       uses: actions/checkout@v4
       
-    - name: ☕ Setup JDK
+    - name: ☕ Setup JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
@@ -26,88 +23,23 @@ jobs:
     - name: 🔧 Setup Android SDK
       uses: android-actions/setup-android@v2
       
-    # ========================================
-    # 2. ติดตั้ง NDK
-    # ========================================
-    - name: 📦 Install Android NDK
+    - name: 📦 Install NDK
       run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Installing Android NDK 25.2.9519653"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
         sdkmanager --install "ndk;25.2.9519653"
+        echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
         
-        export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653
-        export ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/25.2.9519653
-        
-        echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
-        echo "ANDROID_NDK=$ANDROID_NDK" >> $GITHUB_ENV
-        
-        echo "✅ NDK installed at: $ANDROID_NDK"
-        ls -la $ANDROID_NDK/
-        
-    # ========================================
-    # 3. แตก ZIP
-    # ========================================
     - name: 📂 Unzip Apollon_Client_ImGui.zip
       run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Extracting Apollon_Client_ImGui.zip"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        if [ ! -f "Apollon_Client_ImGui.zip" ]; then
-          echo "❌ Error: Apollon_Client_ImGui.zip not found!"
-          echo "Available files:"
-          ls -la
+        if [ -f "Apollon_Client_ImGui.zip" ]; then
+          unzip -q Apollon_Client_ImGui.zip
+          echo "✅ Extracted"
+        else
+          echo "❌ Apollon_Client_ImGui.zip not found!"
           exit 1
         fi
         
-        unzip -q Apollon_Client_ImGui.zip
-        
-        echo "✅ Extraction completed"
-        echo ""
-        echo "📁 Project Structure:"
-        ls -la
-        
-    # ========================================
-    # 4. ตรวจสอบไฟล์ Build
-    # ========================================
-    - name: 🔍 Check Build Configuration
+    - name: 🔨 Build arm64-v8a
       run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Checking Build Files"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        if [ -f "Android.mk" ]; then
-          echo "✅ Android.mk found"
-          echo "BUILD_METHOD=ndk-build" >> $GITHUB_ENV
-        elif [ -f "CMakeLists.txt" ]; then
-          echo "✅ CMakeLists.txt found"
-          echo "BUILD_METHOD=cmake" >> $GITHUB_ENV
-        else
-          echo "❌ No build configuration found!"
-          exit 1
-        fi
-        
-        echo ""
-        echo "📋 Dependencies:"
-        if [ -d "libraries" ]; then
-          echo "✅ libraries/ found"
-          ls -R libraries/
-        else
-          echo "⚠️  libraries/ not found"
-        fi
-        
-    # ========================================
-    # 5. Build ด้วย ndk-build
-    # ========================================
-    - name: 🔨 Build with ndk-build (arm64-v8a)
-      if: env.BUILD_METHOD == 'ndk-build'
-      run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Building for arm64-v8a"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
         $ANDROID_NDK/ndk-build \
           NDK_PROJECT_PATH=. \
           APP_BUILD_SCRIPT=./Android.mk \
@@ -115,173 +47,16 @@ jobs:
           APP_PLATFORM=android-21 \
           -j$(nproc)
           
-        echo "✅ Build completed for arm64-v8a"
-        
-    - name: 🔨 Build with ndk-build (armeabi-v7a)
-      if: env.BUILD_METHOD == 'ndk-build'
+    - name: 📦 Collect Output
       run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Building for armeabi-v7a"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        mkdir -p output
+        find libs/arm64-v8a -name "*.so" -exec cp {} output/ \; 2>/dev/null || true
+        find obj/local/arm64-v8a -name "*.so" -exec cp {} output/ \; 2>/dev/null || true
+        ls -lh output/
         
-        $ANDROID_NDK/ndk-build \
-          NDK_PROJECT_PATH=. \
-          APP_BUILD_SCRIPT=./Android.mk \
-          APP_ABI=armeabi-v7a \
-          APP_PLATFORM=android-21 \
-          -j$(nproc)
-          
-        echo "✅ Build completed for armeabi-v7a"
-        
-    # ========================================
-    # 6. Build ด้วย CMake
-    # ========================================
-    - name: 🔨 Build with CMake (arm64-v8a)
-      if: env.BUILD_METHOD == 'cmake'
-      run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Building with CMake for arm64-v8a"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        mkdir -p build/arm64-v8a
-        cd build/arm64-v8a
-        
-        cmake ../.. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=arm64-v8a \
-          -DANDROID_PLATFORM=android-21 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DANDROID_STL=c++_shared
-          
-        cmake --build . -- -j$(nproc)
-        
-        echo "✅ CMake build completed for arm64-v8a"
-        
-    - name: 🔨 Build with CMake (armeabi-v7a)
-      if: env.BUILD_METHOD == 'cmake'
-      run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Building with CMake for armeabi-v7a"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        mkdir -p build/armeabi-v7a
-        cd build/armeabi-v7a
-        
-        cmake ../.. \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=armeabi-v7a \
-          -DANDROID_PLATFORM=android-21 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DANDROID_STL=c++_shared
-          
-        cmake --build . -- -j$(nproc)
-        
-        echo "✅ CMake build completed for armeabi-v7a"
-        
-    # ========================================
-    # 7. รวบรวมไฟล์
-    # ========================================
-    - name: 📦 Collect Build Outputs
-      run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Collecting Build Outputs"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        mkdir -p output/libs/arm64-v8a
-        mkdir -p output/libs/armeabi-v7a
-        
-        # รวบรวมจาก ndk-build
-        if [ -d "libs" ]; then
-          cp -r libs/* output/libs/ 2>/dev/null || true
-        fi
-        
-        # รวบรวมจาก obj
-        if [ -d "obj/local/arm64-v8a" ]; then
-          find obj/local/arm64-v8a -name "*.so" -exec cp {} output/libs/arm64-v8a/ \;
-        fi
-        
-        if [ -d "obj/local/armeabi-v7a" ]; then
-          find obj/local/armeabi-v7a -name "*.so" -exec cp {} output/libs/armeabi-v7a/ \;
-        fi
-        
-        # รวบรวมจาก CMake
-        if [ -d "build" ]; then
-          find build -name "*.so" -type f | while read file; do
-            if [[ $file == *"arm64-v8a"* ]]; then
-              cp "$file" output/libs/arm64-v8a/
-            elif [[ $file == *"armeabi-v7a"* ]]; then
-              cp "$file" output/libs/armeabi-v7a/
-            fi
-          done
-        fi
-        
-        echo "✅ Build outputs collected"
-        echo ""
-        echo "📊 Output Summary:"
-        du -sh output/libs/*
-        find output -name "*.so" -exec ls -lh {} \;
-        
-    # ========================================
-    # 8. สร้าง Release Package
-    # ========================================
-    - name: 📚 Create Release Package
-      run: |
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Creating Release Package"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        cd output
-        tar -czf ../Apollon-Client-libs.tar.gz libs/
-        cd ..
-        
-        echo "✅ Release package created"
-        ls -lh Apollon-Client-libs.tar.gz
-        
-    # ========================================
-    # 9. Upload Artifacts
-    # ========================================
-    - name: ⬆️ Upload arm64-v8a
+    - name: ⬆️ Upload
       uses: actions/upload-artifact@v4
       with:
         name: libs-arm64-v8a
-        path: output/libs/arm64-v8a/*.so
+        path: output/*.so
         retention-days: 30
-        
-    - name: ⬆️ Upload armeabi-v7a
-      uses: actions/upload-artifact@v4
-      with:
-        name: libs-armeabi-v7a
-        path: output/libs/armeabi-v7a/*.so
-        retention-days: 30
-        
-    - name: ⬆️ Upload Complete Package
-      uses: actions/upload-artifact@v4
-      with:
-        name: Apollon-Client-Complete
-        path: Apollon-Client-libs.tar.gz
-        retention-days: 90
-        
-    # ========================================
-    # 10. สรุปผล
-    # ========================================
-    - name: 📝 Build Summary
-      run: |
-        echo ""
-        echo "╔══════════════════════════════════════════════════╗"
-        echo "║              Build Completed! ✅                 ║"
-        echo "╚══════════════════════════════════════════════════╝"
-        echo ""
-        echo "📦 Built Libraries:"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        find output -name "*.so" -exec sh -c '
-          file={}
-          size=$(du -h "$file" | cut -f1)
-          name=$(basename "$file")
-          abi=$(echo "$file" | grep -oP "(arm64-v8a|armeabi-v7a)")
-          printf "  %-30s [%-12s] %s\n" "$name" "$abi" "$size"
-        ' \;
-        
-        echo ""
-        echo "🎉 Artifacts uploaded to GitHub Actions!"
-        echo ""
